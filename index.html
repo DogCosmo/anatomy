@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoHero</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-200px) scale(1.5); }
+    }
+    .float-up {
+      animation: floatUp 2s ease-out forwards;
+    }
+    body {
+      font-family: 'Quicksand', sans-serif;
+    }
+    h1, h2, h3 {
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+    }
+    button {
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="module">
+    import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+    import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+    import { Heart, Sparkles, Plus, Minus, Award } from 'https://esm.sh/lucide-react@0.263.1';
+
+    function EcoHeroApp() {
+      const [mounted, setMounted] = React.useState(false);
+      const [currentUser, setCurrentUser] = React.useState(null);
+      const [showLogin, setShowLogin] = React.useState(true);
+      const [isSignup, setIsSignup] = React.useState(false);
+      const [username, setUsername] = React.useState('');
+      const [password, setPassword] = React.useState('');
+      const [currentScreen, setCurrentScreen] = React.useState('home');
+      const [floatingHearts, setFloatingHearts] = React.useState([]);
+      const [uploadedImage, setUploadedImage] = React.useState(null);
+      const [analyzing, setAnalyzing] = React.useState(false);
+      const [analysisResult, setAnalysisResult] = React.useState(null);
+      
+      const [allUsers, setAllUsers] = React.useState({});
+
+      React.useEffect(() => {
+        setMounted(true);
+      }, []);
+
+      const getUserData = (username) => {
+        return allUsers[username] || null;
+      };
+
+      const saveUserData = (username, data) => {
+        setAllUsers(prev => ({
+          ...prev,
+          [username]: data
+        }));
+      };
+
+      const handleLogin = () => {
+        if (!username || !password) {
+          alert('Please enter username and password!');
+          return;
+        }
+
+        if (isSignup) {
+          if (allUsers[username]) {
+            alert('Username already exists!');
+            return;
+          }
+          const newUser = {
+            username,
+            password,
+            carbonData: { transport: 0, energy: 0, food: 0, waste: 0 },
+            ecoPoints: 0,
+            achievements: [],
+            wasteStats: { recycled: 0, composted: 0, landfill: 0 },
+            tips: [],
+            joinDate: new Date().toISOString()
+          };
+          saveUserData(username, newUser);
+          setCurrentUser(newUser);
+          setShowLogin(false);
+        } else {
+          const userData = getUserData(username);
+          if (!userData || userData.password !== password) {
+            alert('Invalid username or password!');
+            return;
+          }
+          setCurrentUser(userData);
+          setShowLogin(false);
+        }
+      };
+
+      const handleLogout = () => {
+        setCurrentUser(null);
+        setShowLogin(true);
+        setCurrentScreen('home');
+      };
+
+      const updateUserData = (updates) => {
+        const updated = { ...currentUser, ...updates };
+        setCurrentUser(updated);
+        saveUserData(currentUser.username, updated);
+      };
+
+      const addFloatingHearts = () => {
+        const newHearts = Array.from({ length: 5 }, (_, i) => ({
+          id: Date.now() + i,
+          x: Math.random() * 100,
+          delay: i * 100
+        }));
+        setFloatingHearts(newHearts);
+        setTimeout(() => setFloatingHearts([]), 2000);
+      };
+
+      const analyzeImage = (imageData) => {
+        setAnalyzing(true);
+        
+        setTimeout(() => {
+          const items = [
+            { name: 'Plastic Bottle', category: 'recycle', emoji: '♻️', tip: 'Remove cap and rinse before recycling', confidence: 95 },
+            { name: 'Glass Jar', category: 'recycle', emoji: '♻️', tip: 'Rinse and remove lid before recycling', confidence: 92 },
+            { name: 'Aluminum Can', category: 'recycle', emoji: '♻️', tip: 'Crush to save space, rinse first', confidence: 98 },
+            { name: 'Paper', category: 'recycle', emoji: '♻️', tip: 'Keep dry and clean for recycling', confidence: 90 },
+            { name: 'Cardboard Box', category: 'recycle', emoji: '♻️', tip: 'Flatten and remove tape/labels', confidence: 94 },
+            { name: 'Food Waste', category: 'compost', emoji: '🌱', tip: 'Perfect for composting! Breaks down naturally', confidence: 88 },
+            { name: 'Banana Peel', category: 'compost', emoji: '🌱', tip: 'Great for compost! High in potassium', confidence: 96 },
+            { name: 'Coffee Grounds', category: 'compost', emoji: '🌱', tip: 'Excellent for compost and garden soil', confidence: 93 },
+            { name: 'Egg Shells', category: 'compost', emoji: '🌱', tip: 'Crush before composting for faster breakdown', confidence: 91 },
+            { name: 'Styrofoam', category: 'landfill', emoji: '🗑️', tip: 'Unfortunately not recyclable in most areas', confidence: 85 },
+            { name: 'Chip Bag', category: 'landfill', emoji: '🗑️', tip: 'Mixed materials make this hard to recycle', confidence: 87 },
+            { name: 'Plastic Straw', category: 'landfill', emoji: '🗑️', tip: 'Too small for recycling facilities', confidence: 89 }
+          ];
+          
+          const randomItem = items[Math.floor(Math.random() * items.length)];
+          setAnalysisResult(randomItem);
+          setAnalyzing(false);
+        }, 1500);
+      };
+
+      const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            setUploadedImage(event.target.result);
+            analyzeImage(event.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      if (showLogin) {
+        return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-6" },
+          React.createElement('div', { className: "bg-white rounded-3xl p-8 shadow-2xl border-4 border-green-200 max-w-md w-full" },
+            React.createElement('div', { className: "text-center mb-6" },
+              React.createElement('div', { className: "text-7xl mb-4 animate-bounce", style: { animationDuration: '3s' } }, '🌍'),
+              React.createElement('h1', { className: "text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2" }, 'EcoHero'),
+              React.createElement('p', { className: "text-emerald-600 font-medium" },
+                isSignup ? '✨ Create your account ✨' : '💚 Welcome back! 💚')
+            ),
+            React.createElement('div', { className: "space-y-4" },
+              React.createElement('input', {
+                type: "text",
+                placeholder: "Username",
+                value: username,
+                onChange: (e) => setUsername(e.target.value),
+                className: "w-full px-4 py-3 rounded-2xl border-3 border-green-200 focus:border-green-400 focus:outline-none text-emerald-800 font-medium"
+              }),
+              React.createElement('input', {
+                type: "password",
+                placeholder: "Password",
+                value: password,
+                onChange: (e) => setPassword(e.target.value),
+                className: "w-full px-4 py-3 rounded-2xl border-3 border-green-200 focus:border-green-400 focus:outline-none text-emerald-800 font-medium"
+              }),
+              React.createElement('button', {
+                onClick: handleLogin,
+                className: "w-full bg-gradient-to-r from-green-400 to-emerald-400 text-white font-bold py-3 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+              }, isSignup ? '🌱 Sign Up' : '🚀 Login'),
+              React.createElement('button', {
+                onClick: () => setIsSignup(!isSignup),
+                className: "w-full text-emerald-600 font-medium hover:text-emerald-800 transition-colors"
+              }, isSignup ? 'Already have an account? Login' : "Don't have an account? Sign Up")
+            )
+          )
+        );
+      }
+
+      if (currentScreen === 'games') {
+        const scratchGames = [
+          { id: 1, title: 'Eco Adventure', url: 'https://scratch.mit.edu/projects/912870656/embed', description: 'Help save the environment!' },
+          { id: 2, title: 'Pollution Fighter', url: 'https://scratch.mit.edu/projects/693282232/embed', description: 'Clean up the planet!' },
+          { id: 3, title: 'Green Hero', url: 'https://scratch.mit.edu/projects/26922039/embed', description: 'Make eco-friendly choices!' },
+          { id: 4, title: 'Recycle Master', url: 'https://scratch.mit.edu/projects/460628546/embed', description: 'Sort waste correctly!' }
+        ];
+
+        return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6" },
+          React.createElement('div', { className: "max-w-4xl mx-auto" },
+            React.createElement('button', {
+              onClick: () => setCurrentScreen('home'),
+              className: "mb-4 text-emerald-600 font-bold flex items-center gap-2 hover:gap-3 transition-all"
+            }, '← Back to Home'),
+            React.createElement('div', { className: "bg-white rounded-3xl p-6 shadow-xl border-4 border-green-200 mb-6 text-center" },
+              React.createElement('h2', { className: "text-3xl font-bold text-emerald-800 mb-2" }, '🎮 Eco Games'),
+              React.createElement('p', { className: "text-emerald-600" }, 'Play fun games and learn about the environment!')
+            ),
+            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
+              scratchGames.map(game =>
+                React.createElement('div', {
+                  key: game.id,
+                  className: "bg-gradient-to-br from-green-100 to-emerald-100 rounded-3xl p-4 shadow-lg border-4 border-white"
+                },
+                  React.createElement('h3', { className: "text-xl font-bold text-emerald-800 mb-2" }, game.title),
+                  React.createElement('p', { className: "text-emerald-600 text-sm mb-3" }, game.description),
+                  React.createElement('iframe', {
+                    src: game.url,
+                    allowTransparency: true,
+                    width: '100%',
+                    height: '400',
+                    frameBorder: '0',
+                    scrolling: 'no',
+                    allowFullScreen: true,
+                    className: "rounded-2xl shadow-lg"
+                  })
+                )
+              )
+            )
+          )
+        );
+      }
+
+      if (currentScreen === 'tips') {
+        const ecoTips = [
+          { id: 1, emoji: '💡', title: 'Save Energy', tip: 'Turn off lights when leaving a room to save electricity!' },
+          { id: 2, emoji: '💧', title: 'Water Conservation', tip: 'Turn off the tap while brushing your teeth - save up to 8 gallons!' },
+          { id: 3, emoji: '🚲', title: 'Green Transport', tip: 'Walk or bike for short distances instead of driving!' },
+          { id: 4, emoji: '🛍️', title: 'Reusable Bags', tip: 'Bring reusable bags when shopping to reduce plastic waste!' },
+          { id: 5, emoji: '🌱', title: 'Plant Trees', tip: 'Plant a tree! One tree can absorb 48 pounds of CO₂ per year!' },
+          { id: 6, emoji: '♻️', title: 'Recycle Right', tip: 'Clean and dry recyclables before putting them in the bin!' }
+        ];
+
+        return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6" },
+          React.createElement('div', { className: "max-w-2xl mx-auto" },
+            React.createElement('button', {
+              onClick: () => setCurrentScreen('home'),
+              className: "mb-4 text-emerald-600 font-bold flex items-center gap-2 hover:gap-3 transition-all"
+            }, '← Back to Home'),
+            React.createElement('div', { className: "bg-white rounded-3xl p-6 shadow-xl border-4 border-green-200 mb-6 text-center" },
+              React.createElement('h2', { className: "text-3xl font-bold text-emerald-800 mb-2" }, '💡 Daily Eco Tips'),
+              React.createElement('p', { className: "text-emerald-600" }, 'Small actions make a big difference!')
+            ),
+            React.createElement('div', { className: "space-y-4" },
+              ecoTips.map(tip =>
+                React.createElement('div', {
+                  key: tip.id,
+                  className: "bg-gradient-to-br from-green-100 to-emerald-100 rounded-3xl p-6 shadow-lg border-4 border-white hover:scale-105 transition-transform"
+                },
+                  React.createElement('div', { className: "flex items-start gap-4" },
+                    React.createElement('div', { className: "text-5xl" }, tip.emoji),
+                    React.createElement('div', { className: "flex-1" },
+                      React.createElement('h3', { className: "text-xl font-bold text-emerald-800 mb-2" }, tip.title),
+                      React.createElement('p', { className: "text-emerald-700" }, tip.tip)
+                    )
+                  )
+                )
+              )
+            )
+          )
+        );
+      }
+
+      if (currentScreen === 'community') {
+        const getAllUsersArray = () => {
+          return Object.values(allUsers).sort((a, b) => b.ecoPoints - a.ecoPoints);
+        };
+
+        const leaderboard = getAllUsersArray();
+
+        return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6" },
+          React.createElement('div', { className: "max-w-2xl mx-auto" },
+            React.createElement('button', {
+              onClick: () => setCurrentScreen('home'),
+              className: "mb-4 text-emerald-600 font-bold flex items-center gap-2 hover:gap-3 transition-all"
+            }, '← Back to Home'),
+            React.createElement('div', { className: "bg-white rounded-3xl p-6 shadow-xl border-4 border-green-200 mb-6 text-center" },
+              React.createElement('h2', { className: "text-3xl font-bold text-emerald-800 mb-2" }, '🌍 Community'),
+              React.createElement('p', { className: "text-emerald-600" }, 'See how you rank with other EcoHeroes!')
+            ),
+            React.createElement('div', { className: "bg-gradient-to-br from-green-100 to-emerald-100 rounded-3xl p-6 shadow-lg border-4 border-white mb-6" },
+              React.createElement('h3', { className: "text-2xl font-bold text-emerald-800 mb-4 flex items-center justify-center gap-2" },
+                React.createElement('span', null, '🏆'),
+                'Leaderboard',
+                React.createElement('span', null, '🏆')
+              ),
+              leaderboard.length === 0 ? 
+                React.createElement('p', { className: "text-emerald-600 text-center py-8" }, 'Be the first EcoHero! Start tracking your actions.') :
+                React.createElement('div', { className: "space-y-3" },
+                  leaderboard.map((user, index) => {
+                    const isCurrentUser = user.username === currentUser.username;
+                    const medals = ['🥇', '🥈', '🥉'];
+                    return React.createElement('div', {
+                      key: user.username,
+                      className: `flex items-center gap-4 p-4 rounded-2xl ${isCurrentUser ? 'bg-yellow-200 border-2 border-yellow-400' : 'bg-white'} shadow-md`
+                    },
+                      React.createElement('div', { className: "text-3xl font-bold w-12 text-center" },
+                        index < 3 ? medals[index] : `#${index + 1}`
+                      ),
+                      React.createElement('div', { className: "flex-1" },
+                        React.createElement('p', { className: `font-bold text-lg ${isCurrentUser ? 'text-emerald-900' : 'text-emerald-800'}` },
+                          user.username,
+                          isCurrentUser ? ' (You!)' : ''
+                        ),
+                        React.createElement('div', { className: "flex gap-4 text-sm text-emerald-600" },
+                          React.createElement('span', null, `♻️ ${user.wasteStats.recycled} recycled`),
+                          React.createElement('span', null, `🌱 ${user.wasteStats.composted} composted`)
+                        )
+                      ),
+                      React.createElement('div', { className: "text-right" },
+                        React.createElement('div', { className: "text-2xl font-bold text-green-600" }, user.ecoPoints),
+                        React.createElement('div', { className: "text-xs text-emerald-600" }, 'points')
+                      )
+                    );
+                  })
+                )
+            ),
+            React.createElement('div', { className: "bg-gradient-to-br from-lime-100 to-green-100 rounded-3xl p-6 shadow-lg border-4 border-white" },
+              React.createElement('h3', { className: "text-xl font-bold text-emerald-800 mb-3 text-center" }, '🌟 Community Stats'),
+              React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                React.createElement('div', { className: "bg-white rounded-2xl p-4 text-center" },
+                  React.createElement('div', { className: "text-3xl mb-2" }, '👥'),
+                  React.createElement('div', { className: "text-2xl font-bold text-green-600" }, leaderboard.length),
+                  React.createElement('div', { className: "text-sm text-emerald-600" }, 'Total Heroes')
+                ),
+                React.createElement('div', { className: "bg-white rounded-2xl p-4 text-center" },
+                  React.createElement('div', { className: "text-3xl mb-2" }, '♻️'),
+                  React.createElement('div', { className: "text-2xl font-bold text-green-600" },
+                    leaderboard.reduce((sum, u) => sum + u.wasteStats.recycled, 0)
+                  ),
+                  React.createElement('div', { className: "text-sm text-emerald-600" }, 'Items Recycled')
+                ),
+                React.createElement('div', { className: "bg-white rounded-2xl p-4 text-center" },
+                  React.createElement('div', { className: "text-3xl mb-2" }, '🌱'),
+                  React.createElement('div', { className: "text-2xl font-bold text-green-600" },
+                    leaderboard.reduce((sum, u) => sum + u.wasteStats.composted, 0)
+                  ),
+                  React.createElement('div', { className: "text-sm text-emerald-600" }, 'Items Composted')
+                ),
+                React.createElement('div', { className: "bg-white rounded-2xl p-4 text-center" },
+                  React.createElement('div', { className: "text-3xl mb-2" }, '🏆'),
+                  React.createElement('div', { className: "text-2xl font-bold text-green-600" },
+                    leaderboard.reduce((sum, u) => sum + u.ecoPoints, 0)
+                  ),
+                  React.createElement('div', { className: "text-sm text-emerald-600" }, 'Total Points')
+                )
+              )
+            )
+          )
+        );
+      }
+
+      if (currentScreen === 'carbon') {
+        return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6" },
+          React.createElement('div', { className: "max-w-2xl mx-auto" },
+            React.createElement('button', {
+              onClick: () => setCurrentScreen('home'),
+              className: "mb-4 text-emerald-600 font-bold flex items-center gap-2 hover:gap-3 transition-all"
+            }, '← Back to Home'),
+            React.createElement('div', { className: "bg-white rounded-3xl p-6 shadow-xl border-4 border-green-200 mb-4" },
+              React.createElement('h2', { className: "text-3xl font-bold text-emerald-800 mb-4 flex items-center gap-2" }, '📊 Carbon Footprint Tracker'),
+              React.createElement('div', { className: "text-center mb-6" },
+                React.createElement('div', { className: "text-5xl font-bold text-green-600" },
+                  (currentUser.carbonData.transport + currentUser.carbonData.energy + currentUser.carbonData.food + currentUser.carbonData.waste).toFixed(1) + ' kg'
+                ),
+                React.createElement('p', { className: "text-emerald-600" }, 'Total CO₂ this month')
+              )
+            ),
+            ['transport', 'energy', 'food', 'waste'].map((category) =>
+              React.createElement('div', {
+                key: category,
+                className: "bg-gradient-to-br from-green-100 to-emerald-100 rounded-3xl p-6 shadow-lg border-4 border-white mb-4"
+              },
+                React.createElement('div', { className: "flex items-center justify-between mb-3" },
+                  React.createElement('h3', { className: "text-xl font-bold text-emerald-800 capitalize" }, category + ' 🚗'),
+                  React.createElement('span', { className: "text-2xl font-bold text-green-600" },
+                    currentUser.carbonData[category].toFixed(1) + ' kg'
+                  )
+                ),
+                React.createElement('div', { className: "flex gap-2" },
+                  React.createElement('button', {
+                    onClick: () => {
+                      updateUserData({
+                        carbonData: { ...currentUser.carbonData, [category]: Math.max(0, currentUser.carbonData[category] - 1) }
+                      });
+                    },
+                    className: "bg-red-300 hover:bg-red-400 text-white rounded-full p-2 transition-colors"
+                  }, React.createElement(Minus, { className: "w-5 h-5" })),
+                  React.createElement('button', {
+                    onClick: () => {
+                      updateUserData({
+                        carbonData: { ...currentUser.carbonData, [category]: currentUser.carbonData[category] + 1 },
+                        ecoPoints: currentUser.ecoPoints + 1
+                      });
+                      addFloatingHearts();
+                    },
+                    className: "bg-green-400 hover:bg-green-500 text-white rounded-full p-2 transition-colors flex-1"
+                  }, React.createElement(Plus, { className: "w-5 h-5 mx-auto" }))
+                )
+              )
+            )
+          ),
+          floatingHearts.map(heart =>
+            React.createElement('div', {
+              key: heart.id,
+              className: "fixed pointer-events-none",
+              style: {
+                left: heart.x + '%',
+                bottom: '20%',
+                animation: 'floatUp 2s ease-out forwards',
+                animationDelay: heart.delay + 'ms'
+              }
+            }, React.createElement(Heart, { className: "text-pink-400 fill-pink-400 w-6 h-6" }))
+          )
+        );
+      }
+
+      if (currentScreen === 'waste') {
+        return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6" },
+          React.createElement('div', { className: "max-w-2xl mx-auto" },
+            React.createElement('button', {
+              onClick: () => setCurrentScreen('home'),
+              className: "mb-4 text-emerald-600 font-bold flex items-center gap-2 hover:gap-3 transition-all"
+            }, '← Back to Home'),
+            
+            React.createElement('div', { className: "bg-white rounded-3xl p-6 shadow-xl border-4 border-green-200 mb-6" },
+              React.createElement('h2', { className: "text-3xl font-bold text-emerald-800 mb-4" }, '♻️ AI Waste Sorter'),
+              React.createElement('p', { className: "text-emerald-600 mb-4" }, '📸 Upload a photo to identify where to sort it!'),
+              
+              React.createElement('label', { 
+                className: "block w-full bg-gradient-to-r from-emerald-400 to-teal-400 text-white font-bold py-4 px-6 rounded-2xl text-center cursor-pointer hover:from-emerald-500 hover:to-teal-500 transition-all transform hover:scale-105 shadow-lg mb-4"
+              },
+                '📸 Upload Photo to Analyze',
+                React.createElement('input', {
+                  type: 'file',
+                  accept: 'image/*',
+                  onChange: handleImageUpload,
+                  style: { display: 'none' }
+                })
+              ),
+
+              uploadedImage && React.createElement('img', {
+                src: uploadedImage,
+                alt: 'Uploaded item',
+                className: 'w-full h-64 object-cover rounded-2xl shadow-lg mb-4'
+              }),
+
+              analyzing && React.createElement('div', { className: "text-center py-8" },
+                React.createElement('div', { className: "text-6xl mb-4 animate-bounce" }, '🔍'),
+                React.createElement('p', { className: "text-emerald-700 font-bold text-xl" }, 'Analyzing your item...')
+              ),
+
+              analysisResult && !analyzing && React.createElement('div', { 
+                className: `bg-gradient-to-br ${
+                  analysisResult.category === 'recycle' ? 'from-green-100 to-emerald-100' :
+                  analysisResult.category === 'compost' ? 'from-lime-100 to-green-100' :
+                  'from-gray-100 to-gray-200'
+                } rounded-3xl p-6 shadow-lg border-4 border-white mb-4`
+              },
+                React.createElement('div', { className: "text-center mb-4" },
+                  React.createElement('div', { className: "text-6xl mb-2" }, analysisResult.emoji),
+                  React.createElement('h3', { className: "text-2xl font-bold text-emerald-800 mb-1" }, analysisResult.name),
+                  React.createElement('p', { 
+                    className: "text-lg font-bold",
+                    style: {
+                      color: analysisResult.category === 'recycle' ? '#10b981' :
+                             analysisResult.category === 'compost' ? '#84cc16' : '#6b7280'
+                    }
+                  }, analysisResult.category.toUpperCase()),
+                  React.createElement('p', { className: "text-sm text-emerald-600 mt-2" }, analysisResult.confidence + '% confidence')
+                ),
+                React.createElement('div', { className: "bg-white rounded-2xl p-4 mb-4" },
+                  React.createElement('p', { className: "text-emerald-700 font-medium" }, '💡 ' + analysisResult.tip)
+                ),
+                React.createElement('button', {
+                  onClick: () => {
+                    if (analysisResult.category === 'recycle') {
+                      updateUserData({
+                        wasteStats: { ...currentUser.wasteStats, recycled: currentUser.wasteStats.recycled + 1 },
+                        ecoPoints: currentUser.ecoPoints + 5
+                      });
+                      addFloatingHearts();
+                    } else if (analysisResult.category === 'compost') {
+                      updateUserData({
+                        wasteStats: { ...currentUser.wasteStats, composted: currentUser.wasteStats.composted + 1 },
+                        ecoPoints: currentUser.ecoPoints + 5
+                      });
+                      addFloatingHearts();
+                    } else {
+                      updateUserData({
+                        wasteStats: { ...currentUser.wasteStats, landfill: currentUser.wasteStats.landfill + 1 }
+                      });
+                    }
+                    setUploadedImage(null);
+                    setAnalysisResult(null);
+                  },
+                  className: "w-full bg-gradient-to-r from-green-400 to-emerald-400 text-white font-bold py-3 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+                }, '✅ Log This Item!')
+              ),
+
+              React.createElement('div', { className: "grid grid-cols-3 gap-4 mb-6 mt-6" },
+                React.createElement('div', { className: "text-center" },
+                  React.createElement('div', { className: "text-4xl mb-2" }, '♻️'),
+                  React.createElement('div', { className: "text-2xl font-bold text-green-600" }, currentUser.wasteStats.recycled),
+                  React.createElement('div', { className: "text-sm text-emerald-600" }, 'Recycled')
+                ),
+                React.createElement('div', { className: "text-center" },
+                  React.createElement('div', { className: "text-4xl mb-2" }, '🌱'),
+                  React.createElement('div', { className: "text-2xl font-bold text-green-600" }, currentUser.wasteStats.composted),
+                  React.createElement('div', { className: "text-sm text-emerald-600" }, 'Composted')
+                ),
+                React.createElement('div', { className: "text-center" },
+                  React.createElement('div', { className: "text-4xl mb-2" }, '🗑️'),
+                  React.createElement('div', { className: "text-2xl font-bold text-gray-600" }, currentUser.wasteStats.landfill),
+                  React.createElement('div', { className: "text-sm text-emerald-600" }, 'Landfill')
+                )
+              ),
+              
+              React.createElement('p', { className: "text-emerald-600 mb-3 font-bold" }, 'Or manually track:')
+            ),
+            
+            React.createElement('div', { className: "space-y-3" },
+              React.createElement('button', {
+                onClick: () => {
+                  updateUserData({
+                    wasteStats: { ...currentUser.wasteStats, recycled: currentUser.wasteStats.recycled + 1 },
+                    ecoPoints: currentUser.ecoPoints + 5
+                  });
+                  addFloatingHearts();
+                },
+                className: "w-full bg-gradient-to-r from-green-300 to-emerald-300 rounded-2xl p-4 font-bold text-emerald-800 hover:scale-105 transition-transform"
+              }, '♻️ I Recycled Something! +5 pts'),
+              React.createElement('button', {
+                onClick: () => {
+                  updateUserData({
+                    wasteStats: { ...currentUser.wasteStats, composted: currentUser.wasteStats.composted + 1 },
+                    ecoPoints: currentUser.ecoPoints + 5
+                  });
+                  addFloatingHearts();
+                },
+                className: "w-full bg-gradient-to-r from-lime-300 to-green-300 rounded-2xl p-4 font-bold text-emerald-800 hover:scale-105 transition-transform"
+              }, '🌱 I Composted! +5 pts'),
+              React.createElement('button', {
+                onClick: () => {
+                  updateUserData({
+                    wasteStats: { ...currentUser.wasteStats, landfill: currentUser.wasteStats.landfill + 1 }
+                  });
+                },
+                className: "w-full bg-gradient-to-r from-gray-200 to-gray-300 rounded-2xl p-4 font-bold text-gray-700 hover:scale-105 transition-transform"
+              }, '🗑️ Landfill (no points)')
+            )
+          ),
+          floatingHearts.map(heart =>
+            React.createElement('div', {
+              key: heart.id,
+              className: "fixed pointer-events-none",
+              style: {
+                left: heart.x + '%',
+                bottom: '20%',
+                animation: 'floatUp 2s ease-out forwards',
+                animationDelay: heart.delay + 'ms'
+              }
+            }, React.createElement(Heart, { className: "text-pink-400 fill-pink-400 w-6 h-6" }))
+          )
+        );
+      }
+
+      if (currentScreen === 'progress') {
+        return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6" },
+          React.createElement('div', { className: "max-w-2xl mx-auto" },
+            React.createElement('button', {
+              onClick: () => setCurrentScreen('home'),
+              className: "mb-4 text-emerald-600 font-bold flex items-center gap-2 hover:gap-3 transition-all"
+            }, '← Back to Home'),
+            React.createElement('div', { className: "bg-white rounded-3xl p-6 shadow-xl border-4 border-green-200 mb-6 text-center" },
+              React.createElement('h2', { className: "text-3xl font-bold text-emerald-800 mb-4" }, 'Your Progress'),
+              React.createElement('div', { className: "text-6xl mb-2" }, '🏆'),
+              React.createElement('div', { className: "text-5xl font-bold text-green-600 mb-2" }, currentUser.ecoPoints),
+              React.createElement('p', { className: "text-emerald-600 font-medium" }, 'Eco Points Earned!')
+            ),
+            React.createElement('div', { className: "bg-gradient-to-br from-green-100 to-emerald-100 rounded-3xl p-6 shadow-lg border-4 border-white mb-4" },
+              React.createElement('h3', { className: "text-xl font-bold text-emerald-800 mb-4" }, 'Your Stats'),
+              React.createElement('div', { className: "space-y-2 text-emerald-700" },
+                React.createElement('p', null, 'Username: ', React.createElement('span', { className: "font-bold" }, currentUser.username)),
+                React.createElement('p', null, 'Member since: ', React.createElement('span', { className: "font-bold" }, new Date(currentUser.joinDate).toLocaleDateString())),
+                React.createElement('p', null, 'Items Recycled: ', React.createElement('span', { className: "font-bold" }, currentUser.wasteStats.recycled)),
+                React.createElement('p', null, 'Items Composted: ', React.createElement('span', { className: "font-bold" }, currentUser.wasteStats.composted)),
+                React.createElement('p', null, 'Carbon Tracked: ', React.createElement('span', { className: "font-bold" },
+                  (currentUser.carbonData.transport + currentUser.carbonData.energy + currentUser.carbonData.food + currentUser.carbonData.waste).toFixed(1) + ' kg'
+                ))
+              )
+            ),
+            React.createElement('button', {
+              onClick: handleLogout,
+              className: "w-full bg-gradient-to-r from-red-300 to-pink-300 text-white font-bold py-3 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+            }, '🚪 Logout')
+          )
+        );
+      }
+
+      const cards = [
+        { id: 'games', title: 'Eco Games', description: 'Learn while having fun!', emoji: '🎮', color: 'from-green-100 to-emerald-100', screen: 'games' },
+        { id: 'carbon', title: 'Carbon Tracker', description: 'Track your eco footprint', emoji: '📊', color: 'from-teal-100 to-cyan-100', screen: 'carbon' },
+        { id: 'tips', title: 'Eco Tips', description: 'Daily green inspiration', emoji: '💡', color: 'from-lime-100 to-green-100', screen: 'tips' },
+        { id: 'waste', title: 'Waste Sorter', description: 'Sort & recycle properly', emoji: '♻️', color: 'from-emerald-100 to-teal-100', screen: 'waste' },
+        { id: 'community', title: 'Community', description: 'Connect with eco-friends', emoji: '🌍', color: 'from-green-100 to-lime-100', screen: 'community' },
+        { id: 'progress', title: 'Your Progress', description: 'See your achievements', emoji: '📈', color: 'from-cyan-100 to-teal-100', screen: 'progress' }
+      ];
+
+      return React.createElement('div', { className: "min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6 overflow-auto relative" },
+        React.createElement('div', { className: "absolute top-10 right-10 text-6xl opacity-20 animate-bounce" }, ''),
+        React.createElement('div', { className: "absolute bottom-20 left-10 text-5xl opacity-20 animate-pulse" }, '🌱'),
+        React.createElement('div', { className: "max-w-2xl mx-auto relative z-10" },
+          React.createElement('div', { className: `mb-8 text-center transition-all duration-800 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}` },
+            React.createElement('div', { className: "inline-block mb-4 relative" },
+              React.createElement('img', { 
+                src: "https://png.pngtree.com/png-clipart/20250121/original/pngtree-cute-earth-cartoon-style-vector-png-image_9828774.png",
+                alt: "Kawaii Earth",
+                className: "w-52 h-52 object-contain animate-bounce mx-auto",
+                style: { 
+                  animationDuration: '3s',
+                  filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.2))',
+                  marginTop: '20px'
+                }
+              }),
+              React.createElement('div', { className: "absolute -top-2 -right-2 text-5xl animate-pulse" }, '')
+            ),
+            React.createElement('h1', { className: "text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-3" }, 'EcoHero'),
+            React.createElement('div', { className: "inline-block bg-white rounded-full px-6 py-2 shadow-lg mb-2" },
+              React.createElement('p', { className: "text-emerald-700 text-lg font-medium" }, `✨ Welcome back, ${currentUser.username}! ✨`)
+            ),
+            React.createElement('div', { className: "inline-block bg-green-100 rounded-full px-4 py-1 text-green-700 font-bold" }, `🏆 ${currentUser.ecoPoints} Eco Points`)
+          ),
+          React.createElement('div', { className: "space-y-4" },
+            cards.map((card, index) =>
+              React.createElement('div', {
+                key: card.id,
+                className: `transition-all duration-600 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`,
+                style: { transitionDelay: `${(index * 100) + 400}ms` }
+              },
+                React.createElement('button', {
+                  onClick: () => setCurrentScreen(card.screen),
+                  className: `w-full bg-gradient-to-br ${card.color} rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.03] hover:-translate-y-1 active:scale-98 text-left group border-4 border-white relative overflow-hidden`
+                },
+                  React.createElement('div', { className: "flex items-center space-x-4" },
+                    React.createElement('div', { className: "bg-green-300 rounded-full p-4 shadow-lg transform group-hover:rotate-12 group-hover:scale-110 transition-all duration-300" },
+                      React.createElement('div', { className: "text-4xl" }, card.emoji)
+                    ),
+                    React.createElement('div', { className: "flex-1" },
+                      React.createElement('h2', { className: "text-2xl font-bold text-emerald-800 mb-1" }, card.title),
+                      React.createElement('p', { className: "text-emerald-600 text-sm font-medium" }, card.description)
+                    ),
+                    React.createElement('div', { className: "text-emerald-400 text-2xl" }, '→')
+                  )
+                )
+              )
+            )
+          )
+        )
+      );
+    }
+
+    const root = createRoot(document.getElementById('root'));
+    root.render(React.createElement(EcoHeroApp));
+  </script>
+</body>
+</html>
